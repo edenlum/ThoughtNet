@@ -55,7 +55,7 @@ def create_overfit_dataset(model, train_dataset):
     layer = [child for child in model.named_children() if child[0] == layer_name][0][1]
     def add_norm_output_to_dataset(dataset):
         def hook(model, input, output):
-            dataset.append([copy(output)])
+            dataset.append([deepcopy(output)])
         return hook
 
 
