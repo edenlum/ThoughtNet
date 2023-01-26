@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from copy import deepcopy
+from copy import deepcopy, copy
 from torch.utils.data import DataLoader
 
 
@@ -24,6 +24,7 @@ def train(model, epochs, train_loader, test_loader, opt=None, loss=None, test=Tr
 
         print(f"loss after epoch {epoch}: {l.item()}")
         if test:
+            assert test_loader != None
             test_model(model, test_loader)
         if l.item() < loss_stop:
             break
@@ -70,7 +71,7 @@ def create_overfit_dataset(model, train_dataset):
         model(s[0].unsqueeze(0).cuda())
         handle.remove()
         # overfitting
-        train(model, 100, train_loader_batch1, test_loader, opt = opt_class_token, test=False, loss_stop = 0.01)
+        train(model, 100, train_loader_batch1, test_loader=None, opt = opt_class_token, test=False, loss_stop = 0.01)
         # adding a* to dataset
         dataset[-1].append(deepcopy(model.get_parameter('class_token')))
         # loading back base class_token
