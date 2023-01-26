@@ -55,13 +55,13 @@ def get_layer(model, layer_name):
     layer = [child for child in model.named_children() if child[0] == layer_name][0][1]
     return layer
 
-def create_overfit_dataset(model, train_dataset, layer_name="norm"):
+def create_overfit_dataset(model, train_dataset, layer_name="norm", size=None):
     opt_class_token = torch.optim.Adam([{
         'params': model.get_parameter('class_token')
     }], lr = 0.1)
     model.train()
     layer = get_layer(model, layer_name)
-    small_train_dataset = list(train_dataset)[:1000]
+    small_train_dataset = list(train_dataset)[:size]
     dataset = []
     # saving base class_token
     base_class_token = deepcopy(model.get_parameter('class_token'))
@@ -108,9 +108,9 @@ def test_thought(model, dataset, train_dataset, thought_model, layer_name="norm"
         pred_y = model(x.unsqueeze(0).cuda()).argmax(dim=1)
         
         # with predicted optimized token
-        a_star = thought_model(a)
+        pred_a_star = thought_model(a)
         state_dict = model.state_dict()
-        state_dict["class_token"] = a_star[:, 0:1]
+        state_dict["class_token"] = pred_a_star[:, 0:1]
         model.load_state_dict(state_dict)
         pred_y_thought = model(x.unsqueeze(0).cuda()).argmax(dim=1)
         
