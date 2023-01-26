@@ -46,19 +46,21 @@ def test_model(model, test_loader):
     print(f"Accuracy: {num_correct/total}")
     return num_correct/total
 
-def create_overfit_dataset(model, train_dataset):
-    opt_class_token = torch.optim.Adam([{
-        'params': model.get_parameter('class_token')
-    }], lr = 0.1)
-    model.train()
-    layer_name = "norm"
-    layer = [child for child in model.named_children() if child[0] == layer_name][0][1]
-    def add_norm_output_to_dataset(dataset):
+def add_norm_output_to_dataset(dataset):
         def hook(model, input, output):
             dataset.append([copy(output)])
         return hook
 
+def get_layer(model, layer_name):
+    layer = [child for child in model.named_children() if child[0] == layer_name][0][1]
+    return layer
 
+def create_overfit_dataset(model, train_dataset, layer_name="norm"):
+    opt_class_token = torch.optim.Adam([{
+        'params': model.get_parameter('class_token')
+    }], lr = 0.1)
+    model.train()
+    layer = get_layer(model, layer_name)
     small_train_dataset = list(train_dataset)[:1000]
     dataset = []
     # saving base class_token
@@ -80,32 +82,54 @@ def create_overfit_dataset(model, train_dataset):
         model.load_state_dict(state_dict)
     return dataset
 
-def sanity_check(model, dataset, train_dataset):
-    num_correct, num_correct_orig, worse, better, total = 0, 0, 0, 0, 0
+def test_thought(model, dataset, train_dataset, thought_model, layer_name="norm"):
+    num_correct, num_correct_orig, num_correct_thought, worse, better, total, thought_better, thought_worse = 0, 0, 0, 0, 0, 0, 0, 0
     model.eval()
+    thought_model.eval()
+    
+    # saving base class_token
     base_class_token = deepcopy(model.get_parameter('class_token'))
-    for (x, y), (a, a_star) in zip(train_dataset[:len(dataset)-1], dataset[:-1]):
+    # layer = get_layer(model, layer_name)
+    for (x, y), (a, a_star) in zip(list(train_dataset)[:len(dataset)-1], dataset[:-1]):
         # original
         state_dict = model.state_dict()
         state_dict["class_token"] = base_class_token
         model.load_state_dict(state_dict)
-        pred_y_orig = model(x.unsqueeze(0).cuda())
-        pred_y_orig = pred_y_orig.argmax(dim=1)
+        # a_list = []
+        # handle = layer.register_forward_hook(add_norm_output_to_dataset(a_list))
+        pred_y_orig = model(x.unsqueeze(0).cuda()).argmax(dim=1)
+        # a = a_list[0]
+        # handle.remove()
 
         # with optimized token
         state_dict = model.state_dict()
         state_dict["class_token"] = a_star
         model.load_state_dict(state_dict)
-        pred_y = model(x.unsqueeze(0).cuda())
-        pred_y = pred_y.argmax(dim=1)
+        pred_y = model(x.unsqueeze(0).cuda()).argmax(dim=1)
+        
+        # with predicted optimized token
+        a_star = thought_model(a)
+        state_dict = model.state_dict()
+        state_dict["class_token"] = a_star[:, 0:1]
+        model.load_state_dict(state_dict)
+        pred_y_thought = model(x.unsqueeze(0).cuda()).argmax(dim=1)
+        
         if torch.sum(y == pred_y) > torch.sum(y == pred_y_orig):
             better += 1
         if torch.sum(y == pred_y) < torch.sum(y == pred_y_orig):
             worse += 1
+        if torch.sum(y == pred_y_thought) > torch.sum(y == pred_y_orig):
+            thought_better += 1
+        if torch.sum(y == pred_y_thought) < torch.sum(y == pred_y_orig):
+            thought_worse += 1
         num_correct += torch.sum(y == pred_y)
         num_correct_orig += torch.sum(y == pred_y_orig)
+        num_correct_thought += torch.sum(y == pred_y_thought)
         total += 1 # batch size
     print(f"Accuracy: {num_correct/total}")
     print(f"Accuracy original: {num_correct_orig/total}")
+    print(f"Accuracy thought: {num_correct_thought/total}")
     print(f"Worse: {worse}")
     print(f"Better: {better}")
+    print(f"Thought worse: {thought_worse}")
+    print(f"Thought better: {thought_better}")
