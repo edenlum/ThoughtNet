@@ -22,7 +22,7 @@ class CombinedModel(nn.Module):
         for i in range(iters):
             x = self.thought_head(x)
             x = self.transformer(x)
-        x = self.decision_head(x[:, 0]) # b, d -> b, num_classes
+        x = self.decision_head(x) # b, d -> b, num_classes
         return x
 
 

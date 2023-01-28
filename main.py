@@ -33,6 +33,5 @@ def main():
     net = torch.load(config['net'])
 
 
-
 if __name__ == '__main__':
     main()
