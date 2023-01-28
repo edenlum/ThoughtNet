@@ -8,8 +8,8 @@ def train(model, epochs, train_loader, test_loader, opt=None, loss=None, test=Tr
     if loss == None:
         loss = torch.nn.CrossEntropyLoss()
     if opt == None:
-        opt = torch.optim.Adam(model.parameters(), lr=1e-7)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=1e-3, steps_per_epoch=len(train_loader), epochs=epochs)
+        opt = torch.optim.Adam(model.parameters(), lr=1e-4)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=1e-1, steps_per_epoch=len(train_loader), epochs=epochs)
     model.cuda()
     lrs = []
     losses = []
