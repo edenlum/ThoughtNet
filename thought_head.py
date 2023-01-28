@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from copy import copy
-from model import MultiHeadedSelfAttention
+from .model import MultiHeadedSelfAttention
 
 # Thought Head takes the output sequence of the transformer and returns another sequence of length input sequence + 1
 class ThoughtHead(nn.Module):
