@@ -24,3 +24,32 @@ class CombinedModel(nn.Module):
             x = self.transformer(x)
         x = self.decision_head(x[:, 0]) # b, d -> b, num_classes
         return x
+
+
+class ViTPreprocess(nn.Module):
+    def __init__(self, vit):
+        super().__init__()
+        self.patch_embedding = vit.patch_embedding
+        self.class_token = vit.class_token
+        self.positional_embedding = vit.positional_embedding
+
+    def forward(self, x):
+        b, c, fh, fw = x.shape
+        x = self.patch_embedding(x)  # b,d,gh,gw
+        x = x.flatten(2).transpose(1, 2)  # b,gh*gw,d
+        if hasattr(self, 'class_token'):
+            x = torch.cat((self.class_token.expand(b, -1, -1), x), dim=1)  # b,gh*gw+1,d
+        if hasattr(self, 'positional_embedding'): 
+            x = self.positional_embedding(x)  # b,gh*gw+1,d 
+        return x
+
+class ViTDecisionHead(nn.Module):
+    def __init__(self, vit):
+        super().__init__()
+        self.norm = vit.norm
+        self.fc = vit.fc
+
+    def forward(self, x):
+        x = self.norm(x)[:, 0]  # b,d
+        x = self.fc(x)  # b,num_classes
+        return x
