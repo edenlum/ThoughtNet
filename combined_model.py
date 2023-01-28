@@ -26,6 +26,9 @@ class CombinedModel(nn.Module):
         x = self.decision_head(x) # b, d -> b, num_classes
         return x
 
+    def get_optimizer(self, lr):
+        return torch.optim.Adam(self.thought_head.parameters(), lr=lr)
+
 
 class ViTPreprocess(nn.Module):
     def __init__(self, vit):
@@ -54,3 +57,4 @@ class ViTDecisionHead(nn.Module):
         x = self.norm(x)[:, 0]  # b,d
         x = self.fc(x)  # b,num_classes
         return x
+

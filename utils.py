@@ -8,8 +8,12 @@ def train(model, epochs, train_loader, test_loader, opt=None, loss=None, test=Tr
     if loss == None:
         loss = torch.nn.CrossEntropyLoss()
     if opt == None:
-        opt = torch.optim.Adam(model.parameters(), lr=1e-3)
+        opt = torch.optim.Adam(model.parameters(), lr=1e-7)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=1e-3, steps_per_epoch=len(train_loader), epochs=epochs)
     model.cuda()
+    lrs = []
+    losses = []
+    accuracies = []
     for epoch in range(epochs):
         model.train()
         for idx, batch in enumerate(train_loader):
@@ -19,8 +23,11 @@ def train(model, epochs, train_loader, test_loader, opt=None, loss=None, test=Tr
                 y = nn.functional.one_hot(y, num_classes=10).float()
             pred_y = model(x)
             l = loss(pred_y, y)
+            losses.append(l.item())
+            lrs.append(opt.param_groups[0]['lr'])
             l.backward()
             opt.step()
+            scheduler.step()
 
         print(f"loss after epoch {epoch}: {l.item()}")
         if test:
@@ -31,6 +38,8 @@ def train(model, epochs, train_loader, test_loader, opt=None, loss=None, test=Tr
     
     if save:
         torch.save(model, name)
+
+    return (lrs, losses, accuracies)
 
 
 def test_model(model, test_loader):
