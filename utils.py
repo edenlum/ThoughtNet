@@ -4,12 +4,54 @@ from copy import deepcopy, copy
 from torch.utils.data import DataLoader
 
 
+def train_with_schedualer(model, epochs, train_loader, test_loader, 
+                        opt=None, loss=None, test=True, loss_stop=0.0, 
+                        save=False, name="checkpoints/model.pt",
+                        train_with_schedualer=True, max_lr=1e-1):
+    if loss == None:
+        loss = torch.nn.CrossEntropyLoss()
+    if opt == None:
+        opt = torch.optim.Adam(model.parameters(), lr=1e-4)
+    if train_with_schedualer:
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=max_lr, steps_per_epoch=len(train_loader), epochs=epochs)
+    model.cuda()
+    lrs = []
+    losses = []
+    accuracies = []
+    for epoch in range(epochs):
+        model.train()
+        for idx, batch in enumerate(train_loader):
+            opt.zero_grad()
+            x, y = batch[0].cuda(), batch[1].cuda()
+            if type(loss) == torch.nn.CrossEntropyLoss:
+                y = nn.functional.one_hot(y, num_classes=10).float()
+            pred_y = model(x)
+            l = loss(pred_y, y)
+            losses.append(l.item())
+            lrs.append(opt.param_groups[0]['lr'])
+            l.backward()
+            opt.step()
+            if train_with_schedualer:
+                scheduler.step()
+
+        print(f"loss after epoch {epoch}: {l.item()}")
+        if test:
+            assert test_loader != None
+            test_model(model, test_loader)
+        if l.item() < loss_stop:
+            break
+    
+    if save:
+        torch.save(model, name)
+
+    return (lrs, losses, accuracies)
+
+
 def train(model, epochs, train_loader, test_loader, opt=None, loss=None, test=True, loss_stop=0.0, save=False, name="checkpoints/model.pt"):
     if loss == None:
         loss = torch.nn.CrossEntropyLoss()
     if opt == None:
         opt = torch.optim.Adam(model.parameters(), lr=1e-4)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=1e-1, steps_per_epoch=len(train_loader), epochs=epochs)
     model.cuda()
     lrs = []
     losses = []
@@ -40,7 +82,6 @@ def train(model, epochs, train_loader, test_loader, opt=None, loss=None, test=Tr
         torch.save(model, name)
 
     return (lrs, losses, accuracies)
-
 
 def test_model(model, test_loader):
     model.eval()
