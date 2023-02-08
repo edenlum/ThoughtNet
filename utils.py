@@ -22,9 +22,7 @@ def train(model, epochs, train_loader, test_loader,
         model.train()
         for idx, batch in enumerate(train_loader):
             opt.zero_grad()
-            x, y = batch[0].cuda(), batch[1].cuda()
-            if type(loss) == torch.nn.CrossEntropyLoss:
-                y = nn.functional.one_hot(y, num_classes=10).float()
+            x, y = batch[0].cuda(), batch[1].cuda()                
             pred_y = model(x)
             l = loss(pred_y, y)
             losses.append(l.item())
@@ -48,6 +46,7 @@ def train(model, epochs, train_loader, test_loader,
 
 
 def test_model(model, test_loader):
+    model.cuda()
     model.eval()
     num_correct = 0
     total = 0
