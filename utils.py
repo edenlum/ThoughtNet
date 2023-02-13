@@ -52,8 +52,8 @@ def test_model(model, test_loader):
     total = 0
     for idx, batch in enumerate(test_loader):
         x, y = batch[0].cuda(), batch[1].cuda()
-        pred_y = model(x)
-        pred_y = pred_y.argmax(dim=1)
+        pred_y = model(x).argmax(dim=1)
+        y = y.argmax(dim=1)
         num_correct += torch.sum(y == pred_y)
         total += y.shape[0]  # batch size
     print(f"Accuracy: {num_correct/total}")
