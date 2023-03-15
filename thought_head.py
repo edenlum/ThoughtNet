@@ -47,5 +47,5 @@ class ThoughtHead2(nn.Module):
         # b, s, d -> b, s+1, d
         x = torch.cat((self.class_token.expand(b, -1, -1), x), dim=1)  # b,gh*gw+1,d
         x = self.block(x, None)
-        x = torch.cat((x[:, 0:1], input[:, 1:]), dim=1)
+        # x = torch.cat((x[:, 0:1], input[:, 1:]), dim=1)
         return x

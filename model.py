@@ -152,7 +152,8 @@ class ViT(nn.Module):
         in_channels: int = 3, 
         image_size: Optional[int] = None,
         num_classes: Optional[int] = None,
-        max_thought_size: int = 10
+        max_thought_size: int = 10,
+        num_class_tokens: int = 1,
     ):
         super().__init__()
 
@@ -194,7 +195,7 @@ class ViT(nn.Module):
 
         # Class token
         if classifier == 'token':
-            self.class_token = nn.Parameter(torch.zeros(1, 1, dim))
+            self.class_token = nn.Parameter(torch.zeros(1, num_class_tokens, dim))
             seq_len += 1
         
         # Positional embedding
