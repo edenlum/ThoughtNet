@@ -155,6 +155,7 @@ class ViT(nn.Module):
         max_thought_size: int = 10,
         num_class_tokens: int = 1,
         num_passes: int = 1,
+        next_token_predictor: bool = False,
     ):
         super().__init__()
 
@@ -197,8 +198,14 @@ class ViT(nn.Module):
         # Class token
         if classifier == 'token':
             self.class_token = nn.Parameter(torch.zeros(1, num_class_tokens, dim))
-            seq_len += 1
+            seq_len += num_class_tokens
         
+        # Next token predictor
+        if next_token_predictor:
+            self.next_token_predictor = nn.Linear(dim, dim)
+            self.next_token = nn.Parameter(torch.zeros(1, 1, dim))
+            seq_len += 1
+
         # Positional embedding
         if positional_embedding.lower() == '1d':
             self.positional_embedding = PositionalEmbedding1D(seq_len + max_thought_size, dim)
@@ -246,21 +253,18 @@ class ViT(nn.Module):
         b, c, fh, fw = x.shape
         x = self.patch_embedding(x)  # b,d,gh,gw
         x = x.flatten(2).transpose(1, 2)  # b,gh*gw,d
-        if hasattr(self, 'class_token'):
-            x = torch.cat((self.class_token.expand(b, -1, -1), x), dim=1)  # b,gh*gw+1,d
-
-        if hasattr(self, 'positional_embedding'): 
-            x = self.positional_embedding(x)  # b,gh*gw+1,d 
-        
+        orig_x = x
         for _ in range(self.num_passes):
-            x_with_class_token = self.transformer(x)  # b,gh*gw+1,d
-            class_token_result = x_with_class_token[:, 0].unsqueeze(1)  # b,1,d
-
             if hasattr(self, 'class_token'):
-                x = torch.cat((class_token_result, x[:, 1:]), dim=1)  # b,gh*gw+1,d
-            else:
-                x = x
-
+                x = torch.cat((self.class_token.expand(b, -1, -1), x), dim=1)  # b,gh*gw+1,d
+            if hasattr(self, 'next_token_predictor'):
+                x = torch.cat((x, self.next_token.expand(b, -1, -1)), dim=1)
+            if hasattr(self, 'positional_embedding'): 
+                x = self.positional_embedding(x)  # b,gh*gw+1,d 
+            x = self.transformer(x)  # b,gh*gw+1,d
+            if hasattr(self, 'next_token_predictor'):
+                next_token = self.next_token_predictor(x[:, -1]).unsqueeze(1)  # b,d
+            x = torch.cat((orig_x, next_token), dim=1) # adding next token
         if hasattr(self, 'pre_logits'):
             x = self.pre_logits(x)
             x = torch.tanh(x)
